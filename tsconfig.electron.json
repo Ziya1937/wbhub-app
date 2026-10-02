@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "rootDir": "electron",
+    "outDir": "dist-electron",
+    "noEmit": false,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["electron/main.ts"]
+}

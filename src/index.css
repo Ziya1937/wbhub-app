@@ -1,0 +1,138 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --font-sans: var(--font-sans);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.85);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+}
+
+:root {
+  --background: #f7f6f9;
+  --foreground: #1a1523;
+  --card: #ffffff;
+  --card-foreground: #1a1523;
+  --popover: #ffffff;
+  --popover-foreground: #1a1523;
+  --primary: #7000ff;
+  --primary-foreground: #ffffff;
+  --secondary: #f0edf7;
+  --secondary-foreground: #1a1523;
+  --muted: #efedf3;
+  --muted-foreground: #716b7d;
+  --accent: #cb11ab;
+  --accent-foreground: #ffffff;
+  --destructive: #e5484d;
+  --destructive-foreground: #ffffff;
+  --success: #1a9e5c;
+  --success-foreground: #ffffff;
+  --warning: #e08a00;
+  --warning-foreground: #ffffff;
+  --border: #e3e0ea;
+  --input: #e3e0ea;
+  --ring: #7000ff;
+  --sidebar: #1a1523;
+  --sidebar-foreground: #ded9e8;
+  --sidebar-primary: #7000ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-border: #2b2435;
+  --radius: 0.625rem;
+  --font-sans: system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Скан-инпут держим вне видимости, но не display:none, чтобы фокус/события работали стабильно */
+.scanner-sink {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+/* Splash при запуске */
+@keyframes splash-pop {
+  0% { transform: scale(0.75); opacity: 0; }
+  60% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes splash-text {
+  0% { opacity: 0; transform: translateX(-6px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes splash-fade-out {
+  to { opacity: 0; }
+}
+.splash-logo {
+  animation: splash-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.splash-text {
+  opacity: 0;
+  animation: splash-text 0.35s ease-out 0.3s forwards;
+}
+.splash-overlay-exit {
+  animation: splash-fade-out 0.3s ease-in forwards;
+}
+
+/* Печать только области с QR-кодом */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .qr-print-area,
+  .qr-print-area * {
+    visibility: visible;
+  }
+  .qr-print-area {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+}

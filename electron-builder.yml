@@ -1,0 +1,16 @@
+appId: ru.wbhub.app
+productName: WB Hub
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+publish:
+  provider: github
+  owner: Ziya1937
+  repo: wbhub-releases
