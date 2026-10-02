@@ -5,10 +5,12 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ScanInput } from "./ScanInput";
+import { DeleteWithCodeButton } from "./DeleteWithCodeButton";
 import {
   createEquipmentItem,
   createEquipmentModel,
   createEquipmentType,
+  deleteEquipmentModel,
   fetchEquipmentModels,
   fetchEquipmentTypes,
   fetchStorageLocations,
@@ -155,18 +157,30 @@ export function AddEquipmentDialog({
           {typeId && (
             <div>
               <label className="mb-1.5 block text-sm font-medium">Модель</label>
-              <Select value={modelId} onValueChange={setModelId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите модель" />
-                </SelectTrigger>
-                <SelectContent>
-                  {models.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={modelId} onValueChange={setModelId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Выберите модель" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {modelId && (
+                  <DeleteWithCodeButton
+                    what={`модель «${models.find((m) => m.id === modelId)?.name ?? ""}»`}
+                    onConfirm={async () => {
+                      await deleteEquipmentModel(modelId);
+                      setModels((prev) => prev.filter((m) => m.id !== modelId));
+                      setModelId("");
+                    }}
+                  />
+                )}
+              </div>
               <div className="mt-2 flex gap-2">
                 <Input
                   placeholder="Новая модель…"

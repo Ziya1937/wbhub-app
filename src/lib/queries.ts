@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import type { Employee, EquipmentItem, EquipmentStatus } from "../types/database";
 import { HUB_LOCATION_NAME } from "./status";
+import { getBaseId } from "./baseContext";
 
 export interface EquipmentItemRow extends EquipmentItem {
   equipment_models: {
@@ -8,6 +9,39 @@ export interface EquipmentItemRow extends EquipmentItem {
     equipment_types: { id: string; name: string } | null;
   } | null;
   storage_locations: { id: string; name: string } | null;
+}
+
+export async function createBase(id: string, name: string, code: string) {
+  const { error } = await supabase.rpc("create_base", { p_id: id, p_name: name, p_code: code });
+  if (error) {
+    if (error.code === "23505") throw new Error("Такой ID базы уже занят");
+    throw new Error(error.message);
+  }
+}
+
+export async function verifyBase(id: string, code: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("verify_base", { p_id: id, p_code: code });
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+}
+
+export async function fetchBaseName(id: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("base_name", { p_id: id });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
+}
+
+export interface AggregateRow {
+  base_id: string;
+  base_name: string;
+  type_name: string;
+  total: number;
+}
+
+export async function fetchAggregateCounts(): Promise<AggregateRow[]> {
+  const { data, error } = await supabase.rpc("aggregate_counts");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AggregateRow[];
 }
 
 let hubLocationIdCache: string | null = null;
@@ -75,6 +109,11 @@ export async function createEquipmentModel(typeId: string, name: string) {
   return data;
 }
 
+export async function deleteEquipmentModel(id: string) {
+  const { error } = await supabase.from("equipment_models").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchEquipmentItems(filters?: {
   typeId?: string;
   modelId?: string;
@@ -84,6 +123,7 @@ export async function fetchEquipmentItems(filters?: {
   let query = supabase
     .from("equipment_items")
     .select("*, equipment_models(name, equipment_types(id, name)), storage_locations(id, name)")
+    .eq("base_id", getBaseId())
     .order("created_at", { ascending: false });
 
   if (filters?.modelId) query = query.eq("model_id", filters.modelId);
@@ -104,6 +144,7 @@ export async function findEquipmentItemBySerial(serial: string) {
     .from("equipment_items")
     .select("*, equipment_models(name, equipment_types(id, name)), storage_locations(id, name)")
     .eq("serial_number", serial)
+    .eq("base_id", getBaseId())
     .maybeSingle();
   if (error) throw error;
   return data as unknown as EquipmentItemRow | null;
@@ -118,7 +159,7 @@ export async function fetchEquipmentItemBySerialStrict(serial: string) {
 export async function createEquipmentItem(modelId: string, serial: string, storageLocationId: string) {
   const { data, error } = await supabase
     .from("equipment_items")
-    .insert({ model_id: modelId, serial_number: serial, storage_location_id: storageLocationId })
+    .insert({ model_id: modelId, serial_number: serial, storage_location_id: storageLocationId, base_id: getBaseId() })
     .select()
     .single();
   if (error) throw error;
@@ -140,6 +181,7 @@ export async function findEmployeeByBadge(badgeCode: string) {
     .from("employees")
     .select("*")
     .eq("badge_code", badgeCode)
+    .eq("base_id", getBaseId())
     .maybeSingle();
   if (error) throw error;
   return data as Employee | null;
@@ -151,7 +193,7 @@ export async function findOrCreateEmployeeByBadge(badgeCode: string) {
   if (existing) return existing;
   const { data, error } = await supabase
     .from("employees")
-    .insert({ badge_code: badgeCode })
+    .insert({ badge_code: badgeCode, base_id: getBaseId() })
     .select()
     .single();
   if (error) throw error;
@@ -160,7 +202,9 @@ export async function findOrCreateEmployeeByBadge(badgeCode: string) {
 
 export async function createIssuance(equipmentItemId: string, employeeId: string) {
   const [issuanceRes, itemRes] = await Promise.all([
-    supabase.from("issuances").insert({ equipment_item_id: equipmentItemId, employee_id: employeeId }),
+    supabase
+      .from("issuances")
+      .insert({ equipment_item_id: equipmentItemId, employee_id: employeeId, base_id: getBaseId() }),
     supabase.from("equipment_items").update({ status: "issued" }).eq("id", equipmentItemId),
   ]);
   if (issuanceRes.error) throw issuanceRes.error;
@@ -195,6 +239,7 @@ export async function createDefect(params: {
       equipment_item_id: params.equipmentItemId,
       reported_employee_code: params.reportedEmployeeCode ?? null,
       note: params.note ?? null,
+      base_id: getBaseId(),
     })
     .select()
     .single();
@@ -254,6 +299,7 @@ export async function fetchInventories(): Promise<InventoryRow[]> {
   const { data, error } = await supabase
     .from("inventories")
     .select("*, equipment_types(name)")
+    .eq("base_id", getBaseId())
     .order("started_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as InventoryRow[];
@@ -271,7 +317,7 @@ export interface InventoryItemRow {
 export async function startInventory(typeId: string) {
   const { data: inventory, error: invError } = await supabase
     .from("inventories")
-    .insert({ type_id: typeId })
+    .insert({ type_id: typeId, base_id: getBaseId() })
     .select()
     .single();
   if (invError) throw invError;
@@ -292,7 +338,12 @@ export async function startInventory(typeId: string) {
 }
 
 export async function fetchInventory(id: string) {
-  const { data, error } = await supabase.from("inventories").select("*, equipment_types(name)").eq("id", id).single();
+  const { data, error } = await supabase
+    .from("inventories")
+    .select("*, equipment_types(name)")
+    .eq("id", id)
+    .eq("base_id", getBaseId())
+    .single();
   if (error) throw error;
   return data as unknown as InventoryRow;
 }
@@ -318,6 +369,10 @@ export async function scanInventoryItem(inventoryId: string, serial: string) {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error(`С/Н ${serial} не входит в этот инвент`);
+  // Нашлось на более позднем инвенте — больше не "утеряно".
+  if (item.status === "lost") {
+    await updateEquipmentStatus(item.id, "in_stock");
+  }
   return { ...data, serial_number: item.serial_number };
 }
 
@@ -356,13 +411,19 @@ export async function fetchRepairs(): Promise<RepairRow[]> {
   const { data, error } = await supabase
     .from("repairs")
     .select(REPAIR_SELECT)
+    .eq("base_id", getBaseId())
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as RepairRow[];
 }
 
 export async function fetchRepair(id: string): Promise<RepairRow> {
-  const { data, error } = await supabase.from("repairs").select(REPAIR_SELECT).eq("id", id).single();
+  const { data, error } = await supabase
+    .from("repairs")
+    .select(REPAIR_SELECT)
+    .eq("id", id)
+    .eq("base_id", getBaseId())
+    .single();
   if (error) throw error;
   return data as unknown as RepairRow;
 }
@@ -377,7 +438,11 @@ export async function returnFromExternal(equipmentItemId: string) {
 }
 
 export async function createEmptyRepair(): Promise<RepairRow> {
-  const { data, error } = await supabase.from("repairs").insert({}).select(REPAIR_SELECT).single();
+  const { data, error } = await supabase
+    .from("repairs")
+    .insert({ base_id: getBaseId() })
+    .select(REPAIR_SELECT)
+    .single();
   if (error) throw error;
   return data as unknown as RepairRow;
 }
@@ -470,6 +535,7 @@ export async function fetchTransfers(): Promise<TransferRow[]> {
   const { data, error } = await supabase
     .from("transfers")
     .select("*, transfer_items(equipment_items(id, serial_number, status))")
+    .eq("base_id", getBaseId())
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as TransferRow[];
@@ -482,7 +548,7 @@ export async function createTransfer(params: {
 }) {
   const { data: transfer, error } = await supabase
     .from("transfers")
-    .insert({ transfer_code: params.transferCode || null, lo_name: params.loName })
+    .insert({ transfer_code: params.transferCode || null, lo_name: params.loName, base_id: getBaseId() })
     .select()
     .single();
   if (error) throw error;
@@ -517,15 +583,26 @@ export interface GlobalHistoryEvent extends HistoryEvent {
 }
 
 export async function fetchGlobalHistory(serialFilter?: string): Promise<GlobalHistoryEvent[]> {
+  const baseId = getBaseId();
   const [issuancesRes, defectsRes, invRes, repairRes, transferRes] = await Promise.all([
-    supabase.from("issuances").select("*, equipment_items(serial_number), employees(badge_code)"),
-    supabase.from("defects").select("*, equipment_items(serial_number)"),
+    supabase
+      .from("issuances")
+      .select("*, equipment_items(serial_number), employees(badge_code)")
+      .eq("base_id", baseId),
+    supabase.from("defects").select("*, equipment_items(serial_number)").eq("base_id", baseId),
     supabase
       .from("inventory_items")
-      .select("*, equipment_items(serial_number), inventories(equipment_types(name))")
-      .eq("scanned", true),
-    supabase.from("repair_items").select("*, equipment_items(serial_number), repairs(created_at, lo_name)"),
-    supabase.from("transfer_items").select("*, equipment_items(serial_number), transfers(created_at, lo_name)"),
+      .select("*, equipment_items(serial_number), inventories!inner(equipment_types(name), base_id)")
+      .eq("scanned", true)
+      .eq("inventories.base_id", baseId),
+    supabase
+      .from("repair_items")
+      .select("*, equipment_items(serial_number), repairs!inner(created_at, lo_name, base_id)")
+      .eq("repairs.base_id", baseId),
+    supabase
+      .from("transfer_items")
+      .select("*, equipment_items(serial_number), transfers!inner(created_at, lo_name, base_id)")
+      .eq("transfers.base_id", baseId),
   ]);
 
   const events: GlobalHistoryEvent[] = [];
