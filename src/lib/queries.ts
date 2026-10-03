@@ -521,52 +521,146 @@ export async function fetchIssuedAtHub(): Promise<IssuedAtHubRow[]> {
   }));
 }
 
+export interface BaseOption {
+  id: string;
+  name: string;
+}
+
+export async function listBases(): Promise<BaseOption[]> {
+  const { data, error } = await supabase.rpc("list_bases");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as BaseOption[];
+}
+
+export async function deleteBase(id: string, deleteCode: string) {
+  const { error } = await supabase.rpc("delete_base", { p_id: id, p_delete_code: deleteCode });
+  if (error) throw new Error(error.message);
+}
+
+export async function setBaseCode(id: string, deleteCode: string, newCode: string) {
+  const { error } = await supabase.rpc("set_base_code", {
+    p_id: id,
+    p_delete_code: deleteCode,
+    p_new_code: newCode,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export interface TransferItemRow {
+  id: string;
+  accepted_at: string | null;
+  equipment_items: { id: string; serial_number: string; status: EquipmentStatus; base_id: string } | null;
+}
+
 export interface TransferRow {
   id: string;
   created_at: string;
   transfer_code: string | null;
   lo_name: string;
-  transfer_items: {
-    equipment_items: { id: string; serial_number: string; status: EquipmentStatus } | null;
-  }[];
+  base_id: string;
+  dest_base_id: string | null;
+  status: "pending" | "accepted";
+  transfer_items: TransferItemRow[];
 }
 
-export async function fetchTransfers(): Promise<TransferRow[]> {
+const TRANSFER_SELECT =
+  "*, transfer_items(id, accepted_at, equipment_items(id, serial_number, status, base_id))";
+
+export async function fetchOutgoingTransfers(): Promise<TransferRow[]> {
   const { data, error } = await supabase
     .from("transfers")
-    .select("*, transfer_items(equipment_items(id, serial_number, status))")
+    .select(TRANSFER_SELECT)
     .eq("base_id", getBaseId())
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as TransferRow[];
 }
 
-export async function createTransfer(params: {
+export async function fetchIncomingTransfers(): Promise<TransferRow[]> {
+  const { data, error } = await supabase
+    .from("transfers")
+    .select(TRANSFER_SELECT)
+    .eq("dest_base_id", getBaseId())
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as TransferRow[];
+}
+
+export async function createTransferToBase(params: {
   items: EquipmentItemRow[];
   transferCode: string;
-  loName: string;
+  destBaseId: string;
+  destName: string;
 }) {
   const { data: transfer, error } = await supabase
     .from("transfers")
-    .insert({ transfer_code: params.transferCode || null, lo_name: params.loName, base_id: getBaseId() })
+    .insert({
+      transfer_code: params.transferCode || null,
+      lo_name: params.destName,
+      base_id: getBaseId(),
+      dest_base_id: params.destBaseId,
+      status: "pending",
+    })
     .select()
     .single();
   if (error) throw error;
 
-  const itemsInsert = supabase
+  const { error: itemsError } = await supabase
     .from("transfer_items")
     .insert(params.items.map((i) => ({ transfer_id: transfer.id, equipment_item_id: i.id })));
-  const statusUpdates = Promise.all(params.items.map((item) => updateEquipmentStatus(item.id, "transferred")));
+  if (itemsError) throw itemsError;
 
-  const [itemsRes] = await Promise.all([itemsInsert, statusUpdates]);
-  if (itemsRes.error) throw itemsRes.error;
-
+  await Promise.all(params.items.map((i) => updateEquipmentStatus(i.id, "in_transit")));
   return transfer;
 }
 
+export async function acceptTransferItem(serial: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("transfer_items")
+    .select(
+      "id, transfer_id, equipment_item_id, equipment_items!inner(serial_number), transfers!inner(dest_base_id, status)"
+    )
+    .eq("transfers.dest_base_id", getBaseId())
+    .eq("transfers.status", "pending")
+    .eq("equipment_items.serial_number", serial)
+    .is("accepted_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error(`С/Н ${serial} нет в заявках на приёмку`);
+
+  const row = data as any;
+  const hubId = await fetchHubLocationId();
+  const { error: eqError } = await supabase
+    .from("equipment_items")
+    .update({ base_id: getBaseId(), status: "in_stock", storage_location_id: hubId })
+    .eq("id", row.equipment_item_id);
+  if (eqError) throw eqError;
+
+  const { error: tiError } = await supabase
+    .from("transfer_items")
+    .update({ accepted_at: new Date().toISOString() })
+    .eq("id", row.id);
+  if (tiError) throw tiError;
+
+  const { count } = await supabase
+    .from("transfer_items")
+    .select("id", { count: "exact", head: true })
+    .eq("transfer_id", row.transfer_id)
+    .is("accepted_at", null);
+  if (count === 0) {
+    await supabase.from("transfers").update({ status: "accepted" }).eq("id", row.transfer_id);
+  }
+  return row.equipment_items.serial_number as string;
+}
+
 export async function deleteTransfer(transfer: TransferRow) {
-  const stillThere = transfer.transfer_items.filter((ti) => ti.equipment_items?.status === "transferred");
-  await Promise.all(stillThere.map((ti) => returnFromExternal(ti.equipment_items!.id)));
+  const inTransit = transfer.transfer_items.filter(
+    (ti) => ti.accepted_at === null && ti.equipment_items?.status === "in_transit"
+  );
+  await Promise.all(inTransit.map((ti) => updateEquipmentStatus(ti.equipment_items!.id, "in_stock")));
+  const legacy = transfer.transfer_items.filter((ti) => ti.equipment_items?.status === "transferred");
+  await Promise.all(legacy.map((ti) => returnFromExternal(ti.equipment_items!.id)));
   const { error } = await supabase.from("transfers").delete().eq("id", transfer.id);
   if (error) throw error;
 }

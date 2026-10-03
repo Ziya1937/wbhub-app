@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Splash } from "./components/Splash";
@@ -11,7 +11,8 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { AuditsPage } from "./pages/AuditsPage";
 import { RepairsPage } from "./pages/RepairsPage";
 import { TransfersPage } from "./pages/TransfersPage";
-import { getRememberedBase, setSessionBase } from "./lib/baseContext";
+import { clearBase, getRememberedBase, setSessionBase } from "./lib/baseContext";
+import { fetchBaseName } from "./lib/queries";
 
 type Screen = "select" | "aggregate" | "app";
 
@@ -25,6 +26,19 @@ function App() {
     }
     return "select";
   });
+
+  useEffect(() => {
+    const remembered = getRememberedBase();
+    if (!remembered) return;
+    fetchBaseName(remembered.id)
+      .then((name) => {
+        if (name === null) {
+          clearBase();
+          setScreen("select");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <>

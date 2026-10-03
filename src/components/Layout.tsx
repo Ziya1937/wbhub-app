@@ -82,7 +82,7 @@ export function Layout() {
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/80 hover:bg-white/5 hover:text-white"
             >
               <LogOut className="size-5 shrink-0" />
-              Сменить базу
+              Выход
             </button>
           </div>
         </DialogContent>

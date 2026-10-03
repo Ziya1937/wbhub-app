@@ -110,7 +110,7 @@ export function IssuancePage() {
       toast.error(`С/Н ${item.serial_number} сейчас в ремонте`);
       return;
     }
-    if (item.status === "transferred") {
+    if (item.status === "transferred" || item.status === "in_transit") {
       toast.error(`С/Н ${item.serial_number} сейчас на другом ЛО`);
       return;
     }
