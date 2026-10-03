@@ -32,6 +32,7 @@ import { cn } from "../lib/utils";
 
 const BLOCKED_STATUSES = ["in_transit", "in_transit_repair", "transferred", "issued"];
 const KIND_LABEL = { transfer: "Отправка", repair: "Ремонт" } as const;
+const REPAIR_BASE_NAME = "Кузнецк (на ремонт)";
 
 export function TransfersPage() {
   const currentBaseId = getBaseId();
@@ -46,9 +47,11 @@ export function TransfersPage() {
   const [kind, setKind] = useState<"transfer" | "repair">("transfer");
   const [transferCode, setTransferCode] = useState("");
   const [saving, setSaving] = useState(false);
+  const [viewing, setViewing] = useState<TransferRow | null>(null);
 
   const baseNames = useMemo(() => new Map(bases.map((b) => [b.id, b.name])), [bases]);
   const destOptions = bases.filter((b) => b.id !== currentBaseId);
+  const allowedDest = kind === "repair" ? destOptions.filter((b) => b.name === REPAIR_BASE_NAME) : destOptions;
 
   function load() {
     fetchOutgoingTransfers().then(setOutgoing).catch((e) => toast.error(e.message));
@@ -191,7 +194,7 @@ export function TransfersPage() {
           const destName = t.dest_base_id ? baseNames.get(t.dest_base_id) : t.lo_name;
           const pending = t.status === "pending";
           return (
-            <Card key={t.id} className="p-4">
+            <Card key={t.id} className="cursor-pointer p-4 hover:bg-secondary/40" onClick={() => setViewing(t)}>
               <div className="flex items-center justify-between">
                 <p className="font-medium">
                   {KIND_LABEL[t.kind]} в: {destName || t.lo_name}
@@ -253,6 +256,36 @@ export function TransfersPage() {
         )}
       </section>
 
+      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {viewing && `${KIND_LABEL[viewing.kind]} в: ${(viewing.dest_base_id && baseNames.get(viewing.dest_base_id)) || viewing.lo_name}`}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            {viewing?.transfer_items.map((ti) => {
+              const eq = ti.equipment_items;
+              const state = ti.accepted_at
+                ? "Принято"
+                : eq?.status === "in_transit_repair"
+                  ? "В пути на ремонт"
+                  : eq?.status === "in_transit"
+                    ? "В пути"
+                    : eq?.status === "transferred"
+                      ? "На другом ЛО"
+                      : "—";
+              return (
+                <div key={ti.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+                  <span className="font-mono">{eq?.serial_number}</span>
+                  <span className="text-muted-foreground">{state}</span>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -293,7 +326,10 @@ export function TransfersPage() {
                   <button
                     key={k}
                     type="button"
-                    onClick={() => setKind(k)}
+                    onClick={() => {
+                      setKind(k);
+                      setDestBaseId("");
+                    }}
                     className={cn(
                       "flex-1 rounded-lg border p-2.5 text-sm font-medium transition-colors",
                       kind === k
@@ -312,7 +348,7 @@ export function TransfersPage() {
                     <SelectValue placeholder="Выберите ЛО" />
                   </SelectTrigger>
                   <SelectContent>
-                    {destOptions.map((b) => (
+                    {allowedDest.map((b) => (
                       <SelectItem key={b.id} value={b.id}>
                         {b.name}
                       </SelectItem>
@@ -328,6 +364,9 @@ export function TransfersPage() {
                   onChange={(e) => setTransferCode(e.target.value)}
                 />
               </div>
+              {kind === "repair" && allowedDest.length === 0 && (
+                <p className="text-sm text-warning">Сначала создайте базу «{REPAIR_BASE_NAME}»</p>
+              )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setStep(1)}>
                   Назад

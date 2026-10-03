@@ -33,6 +33,7 @@ export interface EquipmentItem {
   serial_number: string;
   status: EquipmentStatus;
   storage_location_id: string | null;
+  arrived_from?: string | null;
   created_at: string;
 }
 

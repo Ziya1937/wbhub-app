@@ -6,6 +6,9 @@ import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import {
   attachDefectExplanation,
+  fetchTransitInfo,
+  updateEquipmentStatus,
+  type TransitInfo,
   deleteEquipmentItem,
   fetchEquipmentHistory,
   fetchLatestDefect,
@@ -41,6 +44,13 @@ export function EquipmentDetailDialog({
   const [locationId, setLocationId] = useState("");
   const [savingLocation, setSavingLocation] = useState(false);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
+
+  const [transit, setTransit] = useState<TransitInfo | null>(null);
+
+  useEffect(() => {
+    if (!item) return;
+    fetchTransitInfo(item.id).then(setTransit).catch(() => setTransit(null));
+  }, [item]);
 
   useEffect(() => {
     if (!item) return;
@@ -105,6 +115,32 @@ export function EquipmentDetailDialog({
           <span>{item.equipment_models?.name}</span>
           <Badge variant={STATUS_BADGE_VARIANT[item.status]}>{STATUS_LABEL[item.status]}</Badge>
         </div>
+
+        {item.arrived_from && (
+          <p className="mb-3 text-sm text-muted-foreground">Прибыло из: {item.arrived_from}</p>
+        )}
+        {transit?.kind === "repair" && (
+          <p className="mb-3 text-sm text-muted-foreground">Отправлено на ремонт в: {transit.destName}</p>
+        )}
+        {item.status === "in_repair" && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="mb-4"
+            onClick={async () => {
+              try {
+                await updateEquipmentStatus(item.id, "in_stock");
+                toast.success("Статус: на складе");
+                onOpenChange(false);
+                onChanged?.();
+              } catch (e: any) {
+                toast.error(e.message);
+              }
+            }}
+          >
+            Вернуть статус «На складе»
+          </Button>
+        )}
 
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-muted-foreground shrink-0">МХ:</span>

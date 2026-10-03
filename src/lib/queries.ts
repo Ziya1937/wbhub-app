@@ -533,7 +533,7 @@ export async function acceptTransferItem(serial: string): Promise<string> {
   const { data, error } = await supabase
     .from("transfer_items")
     .select(
-      "id, transfer_id, equipment_item_id, equipment_items!inner(serial_number), transfers!inner(dest_base_id, status, kind)"
+      "id, transfer_id, equipment_item_id, equipment_items!inner(serial_number), transfers!inner(dest_base_id, status, kind, base_id)"
     )
     .eq("transfers.dest_base_id", getBaseId())
     .eq("transfers.status", "pending")
@@ -546,9 +546,10 @@ export async function acceptTransferItem(serial: string): Promise<string> {
   const row = data as any;
   const hubId = await fetchHubLocationId();
   const arrivedStatus = row.transfers.kind === "repair" ? "in_repair" : "in_stock";
+  const fromName = (await fetchBaseName(row.transfers.base_id)) ?? "";
   const { error: eqError } = await supabase
     .from("equipment_items")
-    .update({ base_id: getBaseId(), status: arrivedStatus, storage_location_id: hubId })
+    .update({ base_id: getBaseId(), status: arrivedStatus, storage_location_id: hubId, arrived_from: fromName })
     .eq("id", row.equipment_item_id);
   if (eqError) throw eqError;
 
@@ -765,4 +766,24 @@ export async function fetchEquipmentHistory(equipmentItemId: string): Promise<Hi
   return events
     .filter((e) => e.date)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export interface TransitInfo {
+  kind: "transfer" | "repair";
+  destName: string;
+}
+
+export async function fetchTransitInfo(equipmentItemId: string): Promise<TransitInfo | null> {
+  const { data, error } = await supabase
+    .from("transfer_items")
+    .select("transfers!inner(dest_base_id, kind, status)")
+    .eq("equipment_item_id", equipmentItemId)
+    .is("accepted_at", null)
+    .eq("transfers.status", "pending")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const t = (data as any).transfers;
+  const destName = t.dest_base_id ? (await fetchBaseName(t.dest_base_id)) ?? "" : "";
+  return { kind: t.kind, destName };
 }

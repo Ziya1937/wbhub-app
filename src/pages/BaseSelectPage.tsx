@@ -151,7 +151,7 @@ export function BaseSelectPage({
                 </datalist>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Код</label>
+                <label className="mb-1.5 block text-sm font-medium">Пароль</label>
                 <Input
                   type="password"
                   value={loginCode}
@@ -171,22 +171,21 @@ export function BaseSelectPage({
             <div className="flex flex-col gap-3">
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Название ЛО</label>
-                <Input value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="например, Склад Кузнецк" />
+                <Input value={createName} onChange={(e) => setCreateName(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium">ID ЛО (придумайте)</label>
+                <label className="mb-1.5 block text-sm font-medium">ID ЛО</label>
                 <Input
                   value={createId}
                   onChange={(e) => setCreateId(e.target.value)}
-                  placeholder="латиница/цифры, 3-32 символа"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Код доступа</label>
+                <label className="mb-1.5 block text-sm font-medium">Пароль</label>
                 <Input type="password" value={createCode} onChange={(e) => setCreateCode(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Повторите код</label>
+                <label className="mb-1.5 block text-sm font-medium">Повторите пароль</label>
                 <Input
                   type="password"
                   value={createCodeConfirm}
