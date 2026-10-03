@@ -7,7 +7,8 @@ export const STATUS_LABEL: Record<EquipmentStatus, string> = {
   in_repair: "В ремонте",
   defective: "Дефект",
   transferred: "На другом ЛО",
-  in_transit: "В пути на другое ЛО",
+  in_transit: "В пути",
+  in_transit_repair: "В пути на ремонт",
 };
 
 export const STATUS_BADGE_VARIANT: Record<
@@ -21,6 +22,7 @@ export const STATUS_BADGE_VARIANT: Record<
   defective: "destructive",
   transferred: "warning",
   in_transit: "warning",
+  in_transit_repair: "warning",
 };
 
 export const HUB_LOCATION_NAME = "ХАБ";

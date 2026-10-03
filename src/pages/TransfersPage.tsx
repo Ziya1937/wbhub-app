@@ -28,8 +28,10 @@ import {
   type TransferRow,
 } from "../lib/queries";
 import { getBaseId } from "../lib/baseContext";
+import { cn } from "../lib/utils";
 
-const BLOCKED_STATUSES = ["in_transit", "transferred", "in_repair", "issued"];
+const BLOCKED_STATUSES = ["in_transit", "in_transit_repair", "transferred", "issued"];
+const KIND_LABEL = { transfer: "Отправка", repair: "Ремонт" } as const;
 
 export function TransfersPage() {
   const currentBaseId = getBaseId();
@@ -41,6 +43,7 @@ export function TransfersPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [items, setItems] = useState<EquipmentItemRow[]>([]);
   const [destBaseId, setDestBaseId] = useState("");
+  const [kind, setKind] = useState<"transfer" | "repair">("transfer");
   const [transferCode, setTransferCode] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -61,6 +64,7 @@ export function TransfersPage() {
     setStep(1);
     setItems([]);
     setDestBaseId("");
+    setKind("transfer");
     setTransferCode("");
     setOpen(true);
   }
@@ -101,8 +105,13 @@ export function TransfersPage() {
         transferCode: transferCode.trim(),
         destBaseId,
         destName: baseNames.get(destBaseId) ?? "",
+        kind,
       });
-      toast.success(`Отправлено на другое ЛО: ${items.length} шт. — ждёт приёмки`);
+      toast.success(
+        kind === "repair"
+          ? `Отправлено в ремонт: ${items.length} шт. — ждёт приёмки`
+          : `Отправлено: ${items.length} шт. — ждёт приёмки`
+      );
       setOpen(false);
       load();
     } catch (e: any) {
@@ -127,7 +136,7 @@ export function TransfersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Перемещение на ЛО</h1>
         <Button onClick={openDialog} disabled={destOptions.length === 0}>
-          <Send className="size-4" /> Отправить на другое ЛО
+          <Send className="size-4" /> Новое перемещение
         </Button>
       </div>
 
@@ -144,7 +153,9 @@ export function TransfersPage() {
           return (
             <Card key={t.id} className="p-4">
               <div className="flex items-center justify-between">
-                <p className="font-medium">От: {baseNames.get(t.base_id) ?? "неизвестное ЛО"}</p>
+                <p className="font-medium">
+                  {KIND_LABEL[t.kind]} от: {baseNames.get(t.base_id) ?? "неизвестное ЛО"}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(t.created_at).toLocaleString("ru-RU")}
                 </p>
@@ -182,7 +193,9 @@ export function TransfersPage() {
           return (
             <Card key={t.id} className="p-4">
               <div className="flex items-center justify-between">
-                <p className="font-medium">В: {destName || t.lo_name}</p>
+                <p className="font-medium">
+                  {KIND_LABEL[t.kind]} в: {destName || t.lo_name}
+                </p>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-muted-foreground">
                     {new Date(t.created_at).toLocaleString("ru-RU")}
@@ -203,7 +216,9 @@ export function TransfersPage() {
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {t.transfer_items.map((ti) => {
                   const eq = ti.equipment_items;
-                  const inTransit = ti.accepted_at === null && eq?.status === "in_transit";
+                  const inTransit =
+                    ti.accepted_at === null &&
+                    (eq?.status === "in_transit" || eq?.status === "in_transit_repair");
                   const legacyTransferred = eq?.status === "transferred";
                   return (
                     <span
@@ -273,6 +288,23 @@ export function TransfersPage() {
 
           {step === 2 && (
             <div className="flex flex-col gap-3">
+              <div className="flex gap-2">
+                {(["transfer", "repair"] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setKind(k)}
+                    className={cn(
+                      "flex-1 rounded-lg border p-2.5 text-sm font-medium transition-colors",
+                      kind === k
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card hover:bg-secondary/60"
+                    )}
+                  >
+                    {k === "transfer" ? "Отправка на ЛО" : "На ремонт"}
+                  </button>
+                ))}
+              </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Куда (ЛО)</label>
                 <Select value={destBaseId} onValueChange={setDestBaseId}>

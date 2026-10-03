@@ -5,7 +5,8 @@ export type EquipmentStatus =
   | "in_repair"
   | "defective"
   | "transferred"
-  | "in_transit";
+  | "in_transit"
+  | "in_transit_repair";
 
 export interface EquipmentType {
   id: string;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { ArrowRightLeft, Boxes, History, ClipboardCheck, Wrench, Send, Menu, LogOut } from "lucide-react";
+import { ArrowRightLeft, Boxes, History, ClipboardCheck, Send, Menu, LogOut } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { cn } from "../lib/utils";
 import { getCurrentBase, clearBase } from "../lib/baseContext";
@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   { to: "/inventory", label: "Инвентарь", icon: Boxes },
   { to: "/history", label: "История оборудования", icon: History },
   { to: "/audits", label: "Инвент", icon: ClipboardCheck },
-  { to: "/repairs", label: "На ремонт", icon: Wrench },
   { to: "/transfers", label: "Перемещение на ЛО", icon: Send },
 ];
 

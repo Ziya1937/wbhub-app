@@ -9,7 +9,6 @@ import { IssuancePage } from "./pages/IssuancePage";
 import { InventoryPage } from "./pages/InventoryPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { AuditsPage } from "./pages/AuditsPage";
-import { RepairsPage } from "./pages/RepairsPage";
 import { TransfersPage } from "./pages/TransfersPage";
 import { clearBase, getRememberedBase, setSessionBase } from "./lib/baseContext";
 import { fetchBaseName } from "./lib/queries";
@@ -60,7 +59,6 @@ function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/audits" element={<AuditsPage />} />
               <Route path="/audits/:id" element={<AuditsPage />} />
-              <Route path="/repairs" element={<RepairsPage />} />
               <Route path="/transfers" element={<TransfersPage />} />
             </Route>
           </Routes>
