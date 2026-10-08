@@ -7,6 +7,7 @@ export function UpdateDialog() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    window.wbhub?.isUpdateReady().then((ready) => ready && setOpen(true));
     return window.wbhub?.onUpdateDownloaded(() => setOpen(true));
   }, []);
 

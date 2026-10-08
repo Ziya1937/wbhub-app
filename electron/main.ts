@@ -11,6 +11,7 @@ const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 app.setName("WB Hub");
 
 let mainWindow: BrowserWindow | null = null;
+let updateReady = false;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -43,6 +44,7 @@ app.whenReady().then(() => {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.on("update-downloaded", () => {
+      updateReady = true;
       mainWindow?.webContents.send("wbhub:update-downloaded");
     });
     autoUpdater.checkForUpdates().catch(() => {
@@ -50,6 +52,8 @@ app.whenReady().then(() => {
     });
   }
 });
+
+ipcMain.handle("wbhub:is-update-ready", () => updateReady);
 
 ipcMain.on("wbhub:install-update", () => {
   autoUpdater.quitAndInstall();

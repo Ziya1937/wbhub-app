@@ -13,5 +13,6 @@ interface Window {
   wbhub?: {
     onUpdateDownloaded: (callback: () => void) => () => void;
     installUpdate: () => void;
+    isUpdateReady: () => Promise<boolean>;
   };
 }

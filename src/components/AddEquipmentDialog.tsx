@@ -6,14 +6,18 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ScanInput } from "./ScanInput";
 import { DeleteWithCodeButton } from "./DeleteWithCodeButton";
+import { RenameButton } from "./RenameButton";
 import {
   createEquipmentItem,
   createEquipmentModel,
   createEquipmentType,
   deleteEquipmentModel,
+  deleteEquipmentType,
   fetchEquipmentModels,
   fetchEquipmentTypes,
   fetchStorageLocations,
+  updateEquipmentModel,
+  updateEquipmentType,
 } from "../lib/queries";
 import { HUB_LOCATION_NAME } from "../lib/status";
 import type { EquipmentModel, EquipmentType, StorageLocation } from "../types/database";
@@ -127,9 +131,9 @@ export function AddEquipmentDialog({
         <div className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium">Вид оборудования</label>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Select value={typeId} onValueChange={(v) => { setTypeId(v); setModelId(""); }}>
-                <SelectTrigger>
+                <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Выберите вид" />
                 </SelectTrigger>
                 <SelectContent>
@@ -140,6 +144,29 @@ export function AddEquipmentDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {typeId && (
+                <>
+                  <RenameButton
+                    what={`вид «${types.find((t) => t.id === typeId)?.name ?? ""}»`}
+                    initialValue={types.find((t) => t.id === typeId)?.name ?? ""}
+                    onConfirm={async (newName) => {
+                      const updated = await updateEquipmentType(typeId, newName);
+                      setTypes((prev) =>
+                        prev.map((t) => (t.id === typeId ? updated : t)).sort((a, b) => a.name.localeCompare(b.name))
+                      );
+                    }}
+                  />
+                  <DeleteWithCodeButton
+                    what={`вид «${types.find((t) => t.id === typeId)?.name ?? ""}»`}
+                    onConfirm={async () => {
+                      await deleteEquipmentType(typeId);
+                      setTypes((prev) => prev.filter((t) => t.id !== typeId));
+                      setTypeId("");
+                      setModelId("");
+                    }}
+                  />
+                </>
+              )}
             </div>
             <div className="mt-2 flex gap-2">
               <Input
@@ -171,14 +198,26 @@ export function AddEquipmentDialog({
                   </SelectContent>
                 </Select>
                 {modelId && (
-                  <DeleteWithCodeButton
-                    what={`модель «${models.find((m) => m.id === modelId)?.name ?? ""}»`}
-                    onConfirm={async () => {
-                      await deleteEquipmentModel(modelId);
-                      setModels((prev) => prev.filter((m) => m.id !== modelId));
-                      setModelId("");
-                    }}
-                  />
+                  <>
+                    <RenameButton
+                      what={`модель «${models.find((m) => m.id === modelId)?.name ?? ""}»`}
+                      initialValue={models.find((m) => m.id === modelId)?.name ?? ""}
+                      onConfirm={async (newName) => {
+                        const updated = await updateEquipmentModel(modelId, newName);
+                        setModels((prev) =>
+                          prev.map((m) => (m.id === modelId ? updated : m)).sort((a, b) => a.name.localeCompare(b.name))
+                        );
+                      }}
+                    />
+                    <DeleteWithCodeButton
+                      what={`модель «${models.find((m) => m.id === modelId)?.name ?? ""}»`}
+                      onConfirm={async () => {
+                        await deleteEquipmentModel(modelId);
+                        setModels((prev) => prev.filter((m) => m.id !== modelId));
+                        setModelId("");
+                      }}
+                    />
+                  </>
                 )}
               </div>
               <div className="mt-2 flex gap-2">

@@ -42,6 +42,7 @@ function App() {
   return (
     <>
       {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+      <UpdateDialog />
 
       {screen === "select" && (
         <BaseSelectPage onSelected={() => setScreen("app")} onAggregate={() => setScreen("aggregate")} />
@@ -51,7 +52,6 @@ function App() {
 
       {screen === "app" && (
         <>
-          <UpdateDialog />
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<IssuancePage />} />

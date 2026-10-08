@@ -109,6 +109,33 @@ export async function createEquipmentModel(typeId: string, name: string) {
   return data;
 }
 
+export async function updateEquipmentType(id: string, name: string) {
+  const { data, error } = await supabase
+    .from("equipment_types")
+    .update({ name })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateEquipmentModel(id: string, name: string) {
+  const { data, error } = await supabase
+    .from("equipment_models")
+    .update({ name })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteEquipmentType(id: string) {
+  const { error } = await supabase.from("equipment_types").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteEquipmentModel(id: string) {
   const { error } = await supabase.from("equipment_models").delete().eq("id", id);
   if (error) throw error;
