@@ -446,6 +446,7 @@ export async function fetchIssuedAtHub(): Promise<IssuedAtHubRow[]> {
       "id, issued_at, equipment_items!inner(serial_number, storage_location_id, equipment_models(name)), employees(badge_code)"
     )
     .eq("status", "active")
+    .eq("base_id", getBaseId())
     .eq("equipment_items.storage_location_id", hubId)
     .order("issued_at", { ascending: false });
   if (error) throw error;
